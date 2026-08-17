@@ -1,0 +1,29 @@
+# Document Processing
+PyMuPDF==1.24.5
+python-docx==1.1.2
+python-pptx==0.6.23
+
+# Embeddings (GPU-enabled via torch)
+transformers>=4.51.0
+sentence-transformers>=3.2.1
+huggingface-hub>=0.30.0
+
+# Torch installed separately with CUDA (DO NOT include here)
+
+# Vector DB
+pinecone-client==3.2.2
+
+# LLM API
+groq==0.11.0
+
+# API Server
+fastapi==0.115.4
+uvicorn==0.32.0
+python-multipart==0.0.12
+
+# Utilities
+python-dotenv==1.0.1
+pydantic==2.9.2
+numpy==1.26.4
+tqdm==4.66.5
+loguru==0.7.2
