@@ -67,4 +67,3 @@ def validate_config():
     
 
 print("Current Working Directory:", os.getcwd())
-print("GROQ_API_KEY:", GROQ_API_KEY)
