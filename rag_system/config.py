@@ -41,7 +41,7 @@ TOP_K_RESULTS         = int(os.getenv("TOP_K_RESULTS", "5"))
 
 # ── API Server ────────────────────────────────────────────
 API_HOST              = os.getenv("API_HOST", "0.0.0.0")
-API_PORT              = int(os.getenv("API_PORT", "8000"))
+API_PORT = int(os.getenv("PORT", os.getenv("API_PORT") or "8000"))
 
 # ── Upload folder ────────────────────────────────────────
 UPLOAD_DIR            = os.path.join(os.path.dirname(__file__), "uploads")
