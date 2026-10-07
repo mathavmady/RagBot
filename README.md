@@ -1,318 +1,285 @@
 # Syllabex — Intelligent Study Assistant
 
-A full-stack intelligent study assistant that provides conversational Q&A, document ingestion and indexing, and session-based chat.
+Syllabex is a full-stack academic assistant designed to help students, faculty, and administrators interact with study materials through a conversational interface backed by a Retrieval-Augmented Generation (RAG) pipeline. The system combines a Spring Boot backend, a React frontend, and a Python-based RAG engine to provide secure authentication, document ingestion, semantic search, and AI-powered question answering.
 
-- Backend: Spring Boot (Java 17, Spring Boot 3.2.x)
-- Frontend: React + Vite
-- Persistence: MySQL
-- External: FastAPI-based RAG engine (configurable)
+## Overview
 
-## Quick links to important files
+This repository contains three primary components:
 
-- Backend POM: [pom.xml](D:/Ragbot/RagBot/syllabex-backend/pom.xml)
-- Backend schema (reference): [schema.sql](D:/Ragbot/RagBot/syllabex-backend/src/main/resources/schema.sql)
-- Backend config: [application.properties](D:/Ragbot/RagBot/syllabex-backend/src/main/resources/application.properties)
-- Frontend manifest: [package.json](D:/Ragbot/RagBot/syllabex-frontend/package.json)
-- Frontend entry: [index.html](D:/Ragbot/RagBot/syllabex-frontend/index.html)
+- `syllabex-backend` — Java 17 / Spring Boot 3 backend for authentication, authorization, chat orchestration, document management, and MySQL persistence.
+- `syllabex-frontend` — React + Vite frontend for the web application interface.
+- `rag_system` — Python FastAPI-based RAG engine responsible for document processing, embedding generation, vector storage, retrieval, and LLM-powered answer generation.
 
-## Table of contents
+Together, these services form a complete intelligent study platform with role-based access and grounded AI responses.
 
-- Goals and scope
-- Architecture overview
-- System components & responsibilities
-- ER diagram (database)
-- UML / domain model
-- Local development — commands to run
-- Environment variables and configuration
-- Suggested CI / GitHub Actions workflow
-- Recommended Docker Compose snippet
-- Troubleshooting & tips
-- Where to look in the code
+## Key Features
 
----
+- Role-based access control for students, faculty, and administrators
+- Google OAuth-based student login flow
+- JWT-based session authentication
+- Chat history and session management
+- Document upload and ingestion for study materials
+- AI-powered Q&A using RAG over uploaded documents
+- Vector search with Pinecone-backed indexing
+- MySQL persistence for users, documents, and chat records
+- Modern responsive web UI built with React and Tailwind CSS
 
-## 1) Goals and scope
-
-Provide a production-oriented backend to manage users, chat sessions, documents and chat history, and a SPA frontend for interactive conversational UX. The backend orchestrates calls to an external FastAPI RAG engine for indexing and retrieval.
-
-## 2) Architecture overview
-
-- Frontend (React + Vite)
-  - Handles authentication (Google OAuth + JWT flows), chat UI, document upload, and visualizations.
-- Backend (Spring Boot)
-  - JWT auth, user/session management, file upload handling, orchestration to FastAPI via WebClient (WebFlux).
-- External RAG Engine (FastAPI)
-  - Indexing, vector store, retrieval, and LLM prompt orchestration.
-- Database (MySQL)
-  - Stores users, chat_sessions, chats, documents.
-- Upload storage
-  - Local or object storage configured by `UPLOAD_DIR`.
-
-### Architecture diagram (Mermaid)
+## Architecture
 
 ```mermaid
 flowchart LR
-  A[User Browser] -->|HTTPS| F(Frontend - React + Vite)
-  F -->|REST / WebSocket| B(Backend - Spring Boot)
-  B -->|JDBC| M[(MySQL)]
-  B -->|HTTP (WebClient)| R[FastAPI RAG Engine]
-  B -->|File writes| S[Uploads directory / Object Storage]
-  R -->|Vector Store / Index| V[(Vector DB / Index)]
-  style F fill:#f3f4f6, stroke:#111827
-  style B fill:#eef2ff, stroke:#1e293b
-  style R fill:#ecfccb, stroke:#365314
+    U[User] --> F[React Frontend\nVite + Tailwind]
+    F --> B[Spring Boot Backend\nJava 17]
+    B --> M[(MySQL Database)]
+    B --> R[FastAPI RAG Engine\nPython]
+    R --> P[(Pinecone Vector Store)]
+    R --> G[Groq / LLM API]
+    B --> S[Uploaded Files / Storage]
 ```
 
-## 3) System components & responsibilities
+## Tech Stack
 
-- Frontend (syllabex-frontend)
-  - React 18 + Vite. See [package.json](D:/Ragbot/RagBot/syllabex-frontend/package.json).
-  - Scripts: `dev` (vite), `build`, `preview`.
-- Backend (syllabex-backend)
-  - Spring Boot 3.2.x (Java 17). See [pom.xml](D:/Ragbot/RagBot/syllabex-backend/pom.xml).
-  - Responsibilities: auth (JWT), persistence (JPA), upload endpoints, orchestration to FastAPI.
+| Layer | Technology |
+| --- | --- |
+| Backend | Java 17, Spring Boot 3.2, Spring Security |
+| Frontend | React 18, Vite, Tailwind CSS |
+| Database | MySQL 8 |
+| Authentication | JWT, Google OAuth |
+| RAG Engine | Python, FastAPI |
+| Embeddings | Hugging Face / Qwen-based embedding model |
+| Vector Store | Pinecone |
+| LLM Integration | Groq API |
+| Document Processing | PyMuPDF, python-docx, python-pptx |
 
-## 4) ER diagram (derived from schema.sql)
+## Repository Structure
 
-```mermaid
-erDiagram
-  USERS {
-    BIGINT id PK
-    VARCHAR name
-    VARCHAR email
-    VARCHAR password
-    VARCHAR role
-    VARCHAR department
-    TINYINT active
-    DATETIME created_at
-    DATETIME updated_at
-  }
-
-  CHAT_SESSIONS {
-    BIGINT id PK
-    VARCHAR session_id
-    VARCHAR title
-    BIGINT user_id FK
-    DATETIME created_at
-    DATETIME updated_at
-  }
-
-  CHATS {
-    BIGINT id PK
-    TEXT question
-    MEDIUMTEXT answer
-    TEXT sources_json
-    VARCHAR status
-    VARCHAR model_used
-    BIGINT session_id FK
-    BIGINT user_id FK
-    DATETIME created_at
-  }
-
-  DOCUMENTS {
-    BIGINT id PK
-    VARCHAR filename
-    VARCHAR original_name
-    VARCHAR file_type
-    BIGINT file_size
-    INT total_pages
-    INT total_chunks
-    VARCHAR status
-    BIGINT uploaded_by FK
-    DATETIME uploaded_at
-  }
-
-  USERS ||--o{ CHAT_SESSIONS : "owns"
-  CHAT_SESSIONS ||--o{ CHATS : "includes"
-  USERS ||--o{ CHATS : "asks"
-  USERS ||--o{ DOCUMENTS : "uploads"
+```text
+RagBot/
+├── README.md
+├── rag_system/
+│   ├── api/
+│   ├── document_processor/
+│   ├── embedder/
+│   ├── llm/
+│   ├── retriever/
+│   ├── vector_store/
+│   ├── config.py
+│   ├── main.py
+│   ├── pipeline.py
+│   ├── requirements.txt
+│   └── ...
+├── syllabex-backend/
+│   ├── src/
+│   ├── pom.xml
+│   └── README.md
+├── syllabex-frontend/
+│   ├── src/
+│   ├── package.json
+│   └── README.md
+└── .gitignore
 ```
 
-## 5) UML / Domain model
+## System Components
 
-```mermaid
-classDiagram
-  class User {
-    +Long id
-    +String name
-    +String email
-    +String password
-    +String role
-    +Boolean active
-    +Date createdAt
-    +Date updatedAt
-  }
+### 1. Frontend (`syllabex-frontend`)
+The frontend provides the user-facing web application where students and staff can:
 
-  class ChatSession {
-    +Long id
-    +String sessionId
-    +String title
-    +Date createdAt
-    +Date updatedAt
-  }
+- Sign in and authenticate
+- Ask AI questions
+- View chat sessions and responses
+- Upload academic documents
+- Access role-specific dashboards
 
-  class Chat {
-    +Long id
-    +String question
-    +String answer
-    +String sourcesJson
-    +String status
-    +String modelUsed
-    +Date createdAt
-  }
+### 2. Backend (`syllabex-backend`)
+The backend acts as the core orchestration layer. It handles:
 
-  class Document {
-    +Long id
-    +String filename
-    +String originalName
-    +String fileType
-    +Long fileSize
-    +Integer totalPages
-    +Date uploadedAt
-  }
+- Authentication and authorization
+- User and role management
+- Chat session creation and retrieval
+- Document upload workflow
+- HTTP communication to the Python RAG service
+- Persistence in MySQL
 
-  User "1" --> "0..*" ChatSession
-  ChatSession "1" --> "0..*" Chat
-  User "1" --> "0..*" Chat
-  User "1" --> "0..*" Document
-```
+### 3. RAG Engine (`rag_system`)
+The RAG engine processes uploaded study materials and provides grounded responses. It performs:
 
-## 6) Local development — commands to run
+- Document extraction from PDF, DOCX, and PPTX files
+- Chunking and preprocessing
+- Embedding generation
+- Vector indexing in Pinecone
+- Similarity search for retrieval
+- LLM-based answer generation using the retrieved context
 
-Prerequisites
-- Java 17
+## Getting Started
+
+### Prerequisites
+
+Before running the project locally, ensure the following tools are installed:
+
+- Java 17+
 - Maven 3.6+
-- Node 18+
-- npm (or yarn/pnpm)
-- MySQL (or dockerized MySQL)
-- Optional: FastAPI RAG engine (default `http://localhost:8000`)
+- Node.js 18+
+- npm
+- MySQL 8+
+- Python 3.10+
+- A Pinecone account and API key
+- A Groq API key
 
-Backend (port 8080)
-- Build: `mvn -f syllabex-backend clean package`
-- Run (dev): `mvn -f syllabex-backend spring-boot:run`
-- Run jar: `java -jar syllabex-backend/target/syllabex-backend-1.0.0.jar`
+## Local Development Setup
 
-Frontend (Vite, default 5173)
-- cd syllabex-frontend
-- npm ci
-- npm run dev
-- npm run build
-- npm run preview
+### 1. Clone the Repository
 
-## 7) Environment variables and configuration
-
-Key properties (see `syllabex-backend/src/main/resources/application.properties`):
-
-- DB_HOST (default: localhost)
-- DB_PORT (default: 3306)
-- DB_NAME (default: syllabex_db)
-- DB_USER (default: root)
-- DB_PASSWORD (set in environment)
-- JWT_SECRET (app.jwt.secret) — change for production (>=256-bit)
-- FASTAPI_URL (app.fastapi.base-url) — default `http://localhost:8000`
-- UPLOAD_DIR (app.upload.dir)
-
-Example (PowerShell):
-```powershell
-$env:DB_HOST='127.0.0.1'; $env:DB_USER='root'; $env:DB_PASSWORD='password'; mvn -f syllabex-backend spring-boot:run
+```bash
+git clone https://github.com/mathavmady/RagBot.git
+cd RagBot
 ```
 
-## 8) Suggested CI / GitHub Actions workflow (example)
+### 2. Configure the RAG Engine
 
-```yaml
-name: CI
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+Go to the Python project directory and install dependencies:
 
-jobs:
-  build-backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-      - name: Build backend
-        run: mvn -f syllabex-backend -B clean package -DskipTests=true
-
-  build-frontend:
-    runs-on: ubuntu-latest
-    needs: build-backend
-    steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-      - name: Install & build frontend
-        working-directory: syllabex-frontend
-        run: |
-          npm ci
-          npm run build
+```bash
+cd rag_system
+python -m venv venv
+source venv/bin/activate   # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-## 9) Recommended Docker Compose (local dev snippet)
+Create a `.env` file in `rag_system/` with the required environment variables:
 
-```yaml
-version: '3.8'
-services:
-  db:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: syllabex_db
-    ports:
-      - "3306:3306"
-    healthcheck:
-      test: ["CMD","mysqladmin","ping","-h","localhost"]
-      interval: 10s
-      retries: 5
-
-  backend:
-    build:
-      context: ./syllabex-backend
-      dockerfile: Dockerfile
-    environment:
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_NAME: syllabex_db
-      DB_USER: root
-      DB_PASSWORD: rootpass
-      JWT_SECRET: "change-me-in-prod"
-      FASTAPI_URL: "http://fastapi:8000"
-    ports:
-      - "8080:8080"
-    depends_on:
-      db:
-        condition: service_healthy
+```env
+PINECONE_API_KEY=your_pinecone_key
+PINECONE_INDEX_NAME=rag-system
+GROQ_API_KEY=your_groq_key
+LLM_MODEL_NAME=llama-3.1-8b-instant
+EMBEDDING_MODEL_NAME=Qwen/Qwen3-Embedding-0.6B
+API_HOST=0.0.0.0
+API_PORT=8000
 ```
 
-## 10) Troubleshooting & tips
+Run the RAG service:
 
-- DB issues: verify connectivity and credentials. Use `spring.jpa.show-sql=true` to inspect SQL.
-- JWT: rotate `JWT_SECRET` for staging/production.
-- Uploads: ensure `UPLOAD_DIR` exists and is writable.
-- FastAPI: ensure the RAG engine is reachable at `FASTAPI_URL`.
+```bash
+python main.py
+```
 
-## 11) Where to look in the code
+The API documentation will be available at:
 
-- Backend: `D:/Ragbot/RagBot/syllabex-backend`
-  - Config: `D:/Ragbot/RagBot/syllabex-backend/src/main/resources/application.properties`
-  - Schema reference: `D:/Ragbot/RagBot/syllabex-backend/src/main/resources/schema.sql`
-  - Build: `D:/Ragbot/RagBot/syllabex-backend/pom.xml`
+```text
+http://localhost:8000/docs
+```
 
-- Frontend: `D:/Ragbot/RagBot/syllabex-frontend`
-  - Entry: `D:/Ragbot/RagBot/syllabex-frontend/index.html`
-  - Scripts/deps: `D:/Ragbot/RagBot/syllabex-frontend/package.json`
+### 3. Configure and Start the Backend
+
+```bash
+cd syllabex-backend
+mvn clean install
+mvn spring-boot:run
+```
+
+The backend runs on:
+
+```text
+http://localhost:8080
+```
+
+### 4. Configure and Start the Frontend
+
+```bash
+cd syllabex-frontend
+npm install
+npm run dev
+```
+
+The frontend usually runs on:
+
+```text
+http://localhost:5173
+```
+
+## Environment Variables
+
+### Backend (`syllabex-backend/src/main/resources/application.properties`)
+The backend uses the following key variables:
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=syllabex_db
+DB_USER=root
+DB_PASSWORD=your_password
+JWT_SECRET=your_jwt_secret
+GOOGLE_CLIENT_ID=your_google_client_id
+FASTAPI_URL=http://localhost:8000
+UPLOAD_DIR=uploads
+```
+
+### RAG Engine (`rag_system/.env`)
+```env
+PINECONE_API_KEY=your_pinecone_key
+PINECONE_INDEX_NAME=rag-system
+PINECONE_CLOUD=aws
+PINECONE_REGION=us-east-1
+GROQ_API_KEY=your_groq_key
+EMBEDDING_MODEL_NAME=Qwen/Qwen3-Embedding-0.6B
+LLM_MODEL_NAME=llama-3.1-8b-instant
+API_HOST=0.0.0.0
+API_PORT=8000
+```
+
+## Default Admin Account
+
+The backend includes a default admin account for local development or initial setup. The application properties define the following values:
+
+- Email: `adminkncet@gmail.com`
+- Password: `admin123`
+
+Important: Change these values before deploying to a production or shared environment.
+
+## Use Cases
+
+This project is designed for academic environments where users need:
+
+- Instant answers from course materials
+- Search across large uploaded study documents
+- Document-based AI assistance for learning
+- Role-based administrative workflows
+- Secure and efficient academic support tools
+
+## Development Notes
+
+- The backend is the system of record for users, chat sessions, and document metadata.
+- The RAG engine is stateless and focuses purely on ingestion, retrieval, and generation.
+- Document ingestion should follow a robust validation and cleanup flow before production use.
+- Ensure your API keys and database credentials are managed securely in production.
+
+## Troubleshooting
+
+### Common Issues
+
+- Backend fails to connect to MySQL: verify DB credentials and ensure MySQL is running.
+- RAG API fails on startup: confirm `PINECONE_API_KEY` and `GROQ_API_KEY` are defined.
+- Frontend cannot fetch backend data: verify the API base URL and CORS settings.
+- Document ingestion returns no results: confirm the uploaded file is supported and the RAG engine is reachable.
+
+## License
+
+This project does not currently include a license file. If you plan to publish or distribute it, it is recommended to add an appropriate open-source license.
+
+## Contributing
+
+Contributions are welcome. If you want to improve the project:
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Make your changes.
+4. Run tests and validate the build.
+5. Submit a pull request with a clear description.
+
+## Contact
+
+For questions or collaboration opportunities, contact the repository owner or maintainers through the GitHub project page.
 
 ---
 
-If you want, the next steps I can take:
-- Commit this README.md to the repository (create a git commit). (ask to confirm)
-- Produce diagram images (SVG/PNG) for the mermaid diagrams.
-- Add the CI YAML or Dockerfile suggested above as files in the repo.
+This README reflects the current structure and purpose of the repository and is intended to be readable, professional, and suitable for onboarding new developers and collaborators.
